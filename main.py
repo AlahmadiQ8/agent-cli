@@ -237,6 +237,14 @@ This is a **prototype testing environment** for AI agents with the following fea
                     if not user_input.strip():
                         continue
                         
+                    # Clear screen and redisplay welcome for clean interface
+                    self.console.clear()
+                    self.display_welcome()
+                    
+                    # Redisplay recent chat history
+                    for role, message in self.chat_history[-6:]:  # Show last 6 messages
+                        self.display_message(role, message)
+                        
                     # Handle special commands
                     if self.handle_command(user_input):
                         if user_input.strip().lower() == "exit":
