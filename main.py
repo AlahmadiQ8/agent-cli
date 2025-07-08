@@ -1,28 +1,26 @@
 import argparse
-import os
 import sys
+
+from typing import Optional
 
 from prompt_toolkit import PromptSession
 from prompt_toolkit.history import FileHistory
-from prompt_toolkit.shortcuts import clear
-from prompt_toolkit.key_binding import KeyBindings
 
 from rich.console import Console
 from rich.panel import Panel
 from rich.markdown import Markdown
-from rich.text import Text
-from rich.layout import Layout
-from rich.align import Align
+from mock_chatbot import MockChatbot, BaseAgent
 
-from mock_chatbot import MockChatbot
 
 
 class ChatInterface:
     """Rich-based chat interface with bordered messages"""
     
-    def __init__(self):
+    def __init__(self, agent: Optional[BaseAgent] = None):
         self.console = Console()
-        self.chatbot = MockChatbot()
+        self.agent = agent or MockChatbot()
+        if not self.agent.initialize():
+            raise RuntimeError(f"Failed to initialize agent: {self.agent.name}")
         self.chat_history = []
         
     def display_message(self, role: str, message: str):
@@ -32,7 +30,7 @@ class ChatInterface:
             border_style = "blue"
             title_style = "bold blue"
         else:
-            title = "🤖 Assistant"
+            title = f"🤖 {self.agent.name}"
             border_style = "green"
             title_style = "bold green"
             
@@ -55,21 +53,25 @@ class ChatInterface:
         
     def display_welcome(self):
         """Display welcome message"""
-        welcome_text = """
+        welcome_text = f"""
 # Welcome to Agent CLI Chatbot! 🚀
+
+Currently using: **{self.agent.name}**
 
 This is a **prototype testing environment** for AI agents with the following features:
 
 - 💬 **Interactive chat** with markdown support
 - 🎨 **Rich formatting** with bordered messages  
 - 📝 **Command history** (saved to `.chat_history`)
-- 🤖 **Mock responses** for quick testing
+- 🤖 **Pluggable agents** for easy testing
 
 ## Commands:
 - Type your message and press **Enter** to chat
 - Use **Ctrl+C** or type `exit` to quit
 - Type `clear` to clear the screen
 - Type `help` for this message
+- Type `history` to see recent chat history
+- Type `status` to see agent information
 
 ---
 *Start chatting below!*
@@ -107,6 +109,10 @@ This is a **prototype testing environment** for AI agents with the following fea
             self.display_chat_history()
             return True
             
+        elif command == "status":
+            self.display_agent_status()
+            return True
+            
         return False
         
     def display_chat_history(self):
@@ -124,6 +130,31 @@ This is a **prototype testing environment** for AI agents with the following fea
             Markdown(history_text),
             title="📚 History",
             border_style="yellow",
+            padding=(1, 2)
+        )
+        self.console.print(panel)
+        self.console.print()
+        
+    def display_agent_status(self):
+        """Display agent status and information"""
+        status = self.agent.get_status()
+        
+        status_text = "## Agent Status\n\n"
+        status_text += f"**Name**: {status.get('name', 'Unknown')}\n"
+        status_text += f"**Type**: {status.get('type', 'Unknown')}\n"
+        status_text += f"**Initialized**: {status.get('initialized', False)}\n"
+        status_text += f"**Conversation Length**: {status.get('conversation_length', 0)} messages\n\n"
+        
+        capabilities = status.get('capabilities', {})
+        if capabilities:
+            status_text += "### Capabilities\n"
+            for key, value in capabilities.items():
+                status_text += f"- **{key.replace('_', ' ').title()}**: {value}\n"
+        
+        panel = Panel(
+            Markdown(status_text),
+            title="📊 Agent Status",
+            border_style="magenta",
             padding=(1, 2)
         )
         self.console.print(panel)
@@ -167,7 +198,7 @@ This is a **prototype testing environment** for AI agents with the following fea
                     self.display_message("user", user_input)
                     
                     # Get bot response
-                    bot_response = self.chatbot.get_response(user_input)
+                    bot_response = self.agent.generate_response(user_input)
                     
                     # Display assistant response
                     self.display_message("assistant", bot_response)
@@ -193,10 +224,26 @@ def main():
     """Main entry point"""
     parser = argparse.ArgumentParser(description="Interactive AI Agent CLI for prototyping")
     parser.add_argument("--version", action="version", version="agent-cli 0.1.0")
+    parser.add_argument("--agent", choices=["mock", "openai", "anthropic", "local"], 
+                       default="mock", help="Agent type to use")
+    parser.add_argument("--agent-name", type=str, help="Custom agent name")
     
     args = parser.parse_args()
     
-    chat_interface = ChatInterface()
+    # Create agent based on type
+    if args.agent == "mock":
+        agent_name = args.agent_name or "MockBot"
+        agent = MockChatbot(name=agent_name)
+    # elif args.agent == "openai":
+    #     agent = OpenAIAgent(name=args.agent_name or "OpenAI Assistant")
+    # elif args.agent == "anthropic":
+    #     agent = AnthropicAgent(name=args.agent_name or "Claude")
+    # elif args.agent == "local":
+    #     agent = LocalLLMAgent(name=args.agent_name or "Local LLM")
+    else:
+        agent = MockChatbot(name=args.agent_name or "MockBot")
+    
+    chat_interface = ChatInterface(agent=agent)
     return chat_interface.run()
 
 
