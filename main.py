@@ -113,7 +113,7 @@ class ChatInterface:
         self.chatbot = MockChatbot()
         self.chat_history = []
         
-    def display_message(self, role: str, message: str, is_typing: bool = False):
+    def display_message(self, role: str, message: str):
         """Display a message with role-specific styling"""
         if role == "user":
             title = "👤 User"
@@ -124,11 +124,8 @@ class ChatInterface:
             border_style = "green"
             title_style = "bold green"
             
-        if is_typing:
-            content = Text("Thinking...", style="italic dim")
-        else:
-            # Render markdown content
-            content = Markdown(message)
+        # Render markdown content
+        content = Markdown(message)
             
         panel = Panel(
             content,
@@ -142,14 +139,7 @@ class ChatInterface:
         self.console.print(panel)
         self.console.print()  # Add spacing
         
-    def display_typing_indicator(self):
-        """Show typing indicator while bot is thinking"""
-        self.display_message("assistant", "", is_typing=True)
-        
-    def clear_last_message(self):
-        """Clear the last message (typing indicator)"""
-        # Move cursor up and clear lines
-        self.console.print("\033[2A\033[K\033[K\033[K\033[K")
+
         
     def display_welcome(self):
         """Display welcome message"""
@@ -256,14 +246,10 @@ This is a **prototype testing environment** for AI agents with the following fea
                     # Display user message
                     self.display_message("user", user_input)
                     
-                    # Show typing indicator
-                    self.display_typing_indicator()
-                    
                     # Get bot response
                     bot_response = self.chatbot.get_response(user_input)
                     
-                    # Clear typing indicator and show response
-                    self.clear_last_message()
+                    # Display assistant response
                     self.display_message("assistant", bot_response)
                     
                     # Store in history
