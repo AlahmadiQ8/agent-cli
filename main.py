@@ -27,7 +27,7 @@ def main():
         # elif args.agent == "openai":
         #     agent = OpenAIAgent(name=args.agent_name or "OpenAI Assistant")
         elif args.agent == "ai-agent":
-            agent = AzureAIAgentServiceAgent(name=args.agent_name or "Claude")
+            agent = AzureAIAgentServiceAgent()
         else:
             agent = MockChatbot(name=args.agent_name or "MockBot")
         

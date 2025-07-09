@@ -83,6 +83,7 @@ class AzureAIAgentServiceAgent(BaseAgent):
                             agent = await ai_client.agents.get_agent(self.agent_id)
                             agent = await self._create_or_update_agent(agent, ai_client, creds)
                             logger.info(f"Found agent by ID: {agent.id}. Updating agent")
+                            self.name = agent.name
                             return agent
                         except Exception as e:
                             logger.warning(f"Could not retrieve agent by AZURE_AGENT_ID = \"{self.agent_id}\". Will create a new agent.")
@@ -96,6 +97,7 @@ class AzureAIAgentServiceAgent(BaseAgent):
                                 self.agent_id = agent_object.id
                                 agent = await ai_client.agents.get_agent(self.agent_id)
                                 agent = await self._create_or_update_agent(agent, ai_client, creds)
+                                self.name = agent.name
                                 return agent
                     
                     # Create a new agent
@@ -104,6 +106,7 @@ class AzureAIAgentServiceAgent(BaseAgent):
                     self.agent_id = agent.id
                     logger.info(f"Created agent, agent ID: {agent.id}")
 
+                    self.name = agent.name
                     return agent
         except Exception as e:
             logger.error(f"Error creating agent: {e}", exc_info=True)
