@@ -15,9 +15,10 @@ class CliChatInterface:
     def __init__(self, agent: Optional[BaseAgent] = None):
         self.console = Console()
         self.agent = agent or MockChatbot()
-        if not self.agent.initialize():
+
+    async def initialize_agent(self):
+        if not (await self.agent.initialize()):
             raise RuntimeError(f"Failed to initialize agent: {self.agent.name}")
-        self.chat_history = []
 
     def display_message(self, role: str, message: str):
         """Display a message with role-specific styling"""
@@ -84,7 +85,7 @@ This is a **prototype testing environment** for AI agents with the following fea
         self.console.print(panel)
         self.console.print()
 
-    def handle_command(self, user_input: str) -> bool:
+    async def handle_command(self, user_input: str) -> bool:
         """Handle special commands. Returns True if command was handled."""
         command = user_input.strip().lower()
 
@@ -102,24 +103,27 @@ This is a **prototype testing environment** for AI agents with the following fea
             return True
 
         elif command == "history":
-            self.display_chat_history()
+            await self.display_chat_history()
             return True
 
         elif command == "status":
-            self.display_agent_status()
+            await self.display_agent_status()
             return True
 
         return False
 
-    def display_chat_history(self):
+    async def display_chat_history(self):
         """Display chat history summary"""
-        if not self.chat_history:
+        conversation_history = await self.agent.get_conversation_history()
+        if not conversation_history:
             self.console.print("No chat history yet.", style="dim")
             return
 
-        history_text = f"## Chat History ({len(self.chat_history)} messages)\n\n"
-        for i, (role, message) in enumerate(self.chat_history[-5:], 1):  # Show last 5
-            preview = message[:100] + "..." if len(message) > 100 else message
+        history_text = f"## Chat History ({len(conversation_history)} messages)\n\n"
+        for i, message_dict in enumerate(conversation_history[-5:], 1):  # Show last 5
+            role = message_dict["role"]
+            content = message_dict["content"]
+            preview = content[:100] + "..." if len(content) > 100 else content
             history_text += f"{i}. **{role.title()}**: {preview}\n"
 
         panel = Panel(
@@ -131,9 +135,9 @@ This is a **prototype testing environment** for AI agents with the following fea
         self.console.print(panel)
         self.console.print()
 
-    def display_agent_status(self):
+    async def display_agent_status(self):
         """Display agent status and information"""
-        status = self.agent.get_status()
+        status = await self.agent.get_status()
 
         status_text = "## Agent Status\n\n"
         status_text += f"**Name**: {status.get('name', 'Unknown')}\n"
@@ -156,12 +160,12 @@ This is a **prototype testing environment** for AI agents with the following fea
         self.console.print(panel)
         self.console.print()
 
-    def run(self):
+    async def run(self):
         """Main chat loop"""
         try:
             # Setup prompt session with history
             session = PromptSession(
-                history=FileHistory('.chat_history'),
+                history=FileHistory('storage/.chat_history'),
                 multiline=False,
             )
 
@@ -170,8 +174,8 @@ This is a **prototype testing environment** for AI agents with the following fea
 
             while True:
                 try:
-                    # Get user input
-                    user_input = session.prompt("💬 You: ")
+                    # Get user input (async)
+                    user_input = await session.prompt_async("💬 You: ")
 
                     if not user_input.strip():
                         continue
@@ -181,11 +185,12 @@ This is a **prototype testing environment** for AI agents with the following fea
                     self.display_welcome()
 
                     # Redisplay recent chat history
-                    for role, message in self.chat_history[-6:]:  # Show last 6 messages
-                        self.display_message(role, message)
+                    recent_messages = await self.agent.get_recent_messages(6)  # Show last 6 messages
+                    for message_dict in recent_messages:
+                        self.display_message(message_dict["role"], message_dict["content"])
 
                     # Handle special commands
-                    if self.handle_command(user_input):
+                    if await self.handle_command(user_input):
                         if user_input.strip().lower() == "exit":
                             break
                         continue
@@ -193,15 +198,17 @@ This is a **prototype testing environment** for AI agents with the following fea
                     # Display user message
                     self.display_message("user", user_input)
 
-                    # Get bot response
-                    bot_response = self.agent.generate_response(user_input)
+                    # Add user message to agent's conversation history
+                    await self.agent.add_user_message(user_input)
+
+                    # Get bot response (async)
+                    bot_response = await self.agent.generate_response()
 
                     # Display assistant response
                     self.display_message("assistant", bot_response)
 
-                    # Store in history
-                    self.chat_history.append(("user", user_input))
-                    self.chat_history.append(("assistant", bot_response))
+                    # Add assistant response to agent's conversation history
+                    await self.agent.add_assistant_message(bot_response)
 
                 except KeyboardInterrupt:
                     self.console.print("\n👋 Goodbye! Thanks for testing the Agent CLI!", style="bold cyan")
