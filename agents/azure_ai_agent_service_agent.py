@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, List
 import os
 import logging
 import asyncio
@@ -18,7 +18,7 @@ from azure.ai.projects.models import ConnectionType, ApiKeyCredentials
 from azure.identity.aio import DefaultAzureCredential
 from azure.core.credentials_async import AsyncTokenCredential
 
-from agents.base_agent import BaseAgent
+from agents.base_agent import BaseAgent, ResponseMessage
 
 from dotenv import load_dotenv
 
@@ -173,7 +173,7 @@ class AzureAIAgentServiceAgent(BaseAgent):
             )
         logger.info(f"User message sent: {message.id}")
 
-    async def generate_response(self) -> str:
+    async def generate_response(self, user_input: str) -> List[ResponseMessage]:
         """Generate response using Azure AI agent"""
         if not self._initialized or self.azure_agent is None:
             raise RuntimeError("Agent not initialized. Call initialize() first.")
@@ -193,11 +193,13 @@ class AzureAIAgentServiceAgent(BaseAgent):
             if (result is None):
                 raise RuntimeError("No response received from Azure AI agent.")
             
-            return result.text.value
+            # Return as a list of ResponseMessage objects
+            return [ResponseMessage(role="assistant", content=result.text.value)]
+            
         except Exception as e:
             logger.error(f"Error generating response: {e}")
             error_response = f"Error generating response: {e}"
-            return error_response
+            return [ResponseMessage(role="assistant", content=error_response)]
 
     async def get_status(self) -> Dict[str, Any]:
         """Get Azure AI agent status"""

@@ -20,13 +20,17 @@ class CliChatInterface:
         if not (await self.agent.initialize()):
             raise RuntimeError(f"Failed to initialize agent: {self.agent.name}")
 
-    def display_message(self, role: str, message: str):
+    def display_message(self, role: str, message: str, agent_name: Optional[str] = None, tool_name: Optional[str] = None):
         """Display a message with role-specific styling"""
         if role == "user":
             title = "👤 User"
             border_style = "blue"
             title_style = "bold blue"
-        else:
+        elif role == "tool_call":
+            title = f"🔧 {agent_name} → {tool_name}"
+            border_style = "yellow"
+            title_style = "bold yellow"
+        else:  # assistant
             title = f"🤖 {self.agent.name}"
             border_style = "green"
             title_style = "bold green"
@@ -188,7 +192,12 @@ This is a **prototype testing environment** for AI agents with the following fea
                     # Redisplay recent chat history
                     recent_messages = await self.agent.get_recent_messages(6)  # Show last 6 messages
                     for message_dict in recent_messages:
-                        self.display_message(message_dict["role"], message_dict["content"])
+                        self.display_message(
+                            message_dict["role"], 
+                            message_dict["content"],
+                            message_dict.get("agent_name"),
+                            message_dict.get("tool_name")
+                        )
 
                     # Handle special commands
                     if await self.handle_command(user_input):
@@ -202,14 +211,28 @@ This is a **prototype testing environment** for AI agents with the following fea
                     # Add user message to agent's conversation history
                     await self.agent.add_user_message(user_input)
 
-                    # Get bot response (async)
-                    bot_response = await self.agent.generate_response()
+                    # Get bot response (async) - now returns a list of ResponseMessage objects
+                    response_messages = await self.agent.generate_response(user_input)
 
-                    # Display assistant response
-                    self.display_message("assistant", bot_response)
-
-                    # Add assistant response to agent's conversation history
-                    await self.agent.add_assistant_message(bot_response)
+                    # Display and store each response message
+                    for response_msg in response_messages:
+                        # Display the message with appropriate styling
+                        self.display_message(
+                            response_msg.role, 
+                            response_msg.content,
+                            response_msg.agent_name,
+                            response_msg.tool_name
+                        )
+                        
+                        # Add to conversation history
+                        if response_msg.role == "tool_call":
+                            await self.agent.add_tool_call_message(
+                                response_msg.content,
+                                response_msg.agent_name or "Unknown",
+                                response_msg.tool_name or "Unknown"
+                            )
+                        else:  # assistant message
+                            await self.agent.add_assistant_message(response_msg.content)
 
                 except KeyboardInterrupt:
                     self.console.print("\n👋 Goodbye! Thanks for testing the Agent CLI!", style="bold cyan")
