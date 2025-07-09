@@ -95,6 +95,7 @@ This is a **prototype testing environment** for AI agents with the following fea
 
         elif command == "clear":
             self.console.clear()
+            await self.agent.clear_conversation_history()
             self.display_welcome()
             return True
 

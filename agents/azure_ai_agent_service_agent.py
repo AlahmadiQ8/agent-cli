@@ -11,7 +11,8 @@ from azure.ai.agents.models import (
     FilePurpose,
     FileSearchTool,
     Tool,
-    MessageRole
+    MessageRole,
+    BingGroundingTool
 )
 from azure.ai.projects.models import ConnectionType, ApiKeyCredentials
 from azure.identity.aio import DefaultAzureCredential
@@ -42,9 +43,29 @@ class AzureAIAgentServiceAgent(BaseAgent):
         self.thread_id = None 
         self.storage = TemporaryFileStorage()
 
+    async def _get_bing_tool_if_available(self) -> Tool | None:
+        conn_list = self.ai_client.connections.list() # type: ignore
+        conn_id = None
+        async for conn in conn_list:
+            if conn.type == ConnectionType.API_KEY and conn.metadata.get("type") == "bing_grounding":
+                conn_id = conn.id
+                break
+        
+        if conn_id:
+            return BingGroundingTool(
+                connection_id=conn_id,
+                set_lang="en-US",   
+            )
+        else:
+            logger.warning("Bing grounding tool not found. Please create a connection with type 'bing_grounding'.")
+            return None
+
     async def _create_or_update_agent(self, agent: Agent | None, ai_client: AIProjectClient, creds: AsyncTokenCredential) -> Agent:
         """Create or update an Azure AI agent"""
         toolset = AsyncToolSet()
+        bing_tool = await self._get_bing_tool_if_available()
+        if bing_tool:
+            toolset.add(bing_tool)
         
         instructions = "You are a helpful assistant. Use the tools provided to answer questions."
         
@@ -140,6 +161,11 @@ class AzureAIAgentServiceAgent(BaseAgent):
         """Add a user message to the conversation history"""
 
         await super().add_user_message(content)
+
+        if self.thread is None:
+            self.thread = await self.ai_client.agents.threads.create() # type: ignore
+            self.storage.store("thread_id", self.thread.id)
+
         message = await self.ai_client.agents.messages.create( # type: ignore
                 thread_id=self.thread.id,
                 content=content,
@@ -151,16 +177,16 @@ class AzureAIAgentServiceAgent(BaseAgent):
         """Generate response using Azure AI agent"""
         if not self._initialized or self.azure_agent is None:
             raise RuntimeError("Agent not initialized. Call initialize() first.")
-        
+
         try:
             run = await self.ai_client.agents.runs.create_and_process( # type: ignore
-                thread_id=self.thread.id,
+                thread_id=self.thread.id, # type: ignore
                 agent_id=self.azure_agent.id,
             )
             logger.info(f"Run started with ID: {run.id}")
 
             if run.status == "failed":
-                print(f"Run failed: {run.last_error}")
+                logger.error(f"Run failed: {run.last_error}")
             
             result = await self.ai_client.agents.messages.get_last_message_text_by_role(thread_id=self.thread.id, role=MessageRole.AGENT) # type: ignore
 
@@ -184,3 +210,9 @@ class AzureAIAgentServiceAgent(BaseAgent):
             "azure_agent_name": self.azure_agent.name if self.azure_agent else None,
             "project_endpoint": self.proj_endpoint,
         }
+
+    async def clear_conversation_history(self) -> None:
+        await super().clear_conversation_history()
+        await self.ai_client.agents.threads.delete(self.thread.id)  # type: ignore
+        self.storage.delete("thread_id")
+        self.thread = None
