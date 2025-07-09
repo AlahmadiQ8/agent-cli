@@ -1,7 +1,9 @@
+from collections.abc import Coroutine
 from typing import Any, Dict, Optional, List
 import os
 import logging
 import asyncio
+import json
 
 from azure.ai.projects.aio import AIProjectClient
 from azure.ai.agents.models import (
@@ -12,7 +14,12 @@ from azure.ai.agents.models import (
     FileSearchTool,
     Tool,
     MessageRole,
-    BingGroundingTool
+    BingGroundingTool,
+    RunStepBingGroundingToolCall,
+    RunStepMessageCreationDetails,
+    RunStepMessageCreationReference,
+    RunStepType,
+    ListSortOrder
 )
 from azure.ai.projects.models import ConnectionType, ApiKeyCredentials
 from azure.identity.aio import DefaultAzureCredential
@@ -188,13 +195,40 @@ class AzureAIAgentServiceAgent(BaseAgent):
             if run.status == "failed":
                 logger.error(f"Run failed: {run.last_error}")
             
-            result = await self.ai_client.agents.messages.get_last_message_text_by_role(thread_id=self.thread.id, role=MessageRole.AGENT) # type: ignore
+            # result = await self.ai_client.agents.messages.get_last_message_text_by_role(thread_id=self.thread.id, role=MessageRole.AGENT) # type: ignore
+            run_steps = self.ai_client.agents.run_steps.list(thread_id=self.thread.id, run_id=run.id, order= ListSortOrder.ASCENDING)  # type: ignore
 
-            if (result is None):
-                raise RuntimeError("No response received from Azure AI agent.")
+            results = []
+            steps = []
+            async for step in run_steps:
+                steps.append(step)
             
-            # Return as a list of ResponseMessage objects
-            return [ResponseMessage(role="assistant", content=result.text.value)]
+            for step in steps:
+                step_details = step.get("step_details", {})
+                
+                if step.type == RunStepType.TOOL_CALLS:
+                    tool_calls = step_details.get(RunStepType.TOOL_CALLS, [])
+                    for call in tool_calls:
+                        if isinstance(call, RunStepBingGroundingToolCall):
+                            results.append(ResponseMessage(
+                                role="tool_call",
+                                content=call.bing_grounding.get("requesturl", "No URL provided"),
+                                agent_name=self.name,
+                                tool_name=f"{call.type} ({step['status']})"
+                            ))
+                elif step.type == RunStepType.MESSAGE_CREATION:
+                    message_creation = step_details.get(RunStepType.MESSAGE_CREATION, {})
+                    if isinstance(message_creation, RunStepMessageCreationReference):
+                        message = await self.ai_client.agents.messages.get(thread_id=self.thread.id, message_id=message_creation.message_id)   # type: ignore
+                        text_contents = message.text_messages
+                        annotations_list = [f"- [{annotation.url_citation.title}]({annotation.url_citation.url})" for annotation in message.url_citation_annotations]
+                        annotations_str = "\n".join(annotations_list) if annotations_list else None
+                        final_message = text_contents[-1].text.value
+                        if annotations_str:
+                            final_message += f"\n\nCitations:\n{annotations_str}"
+                        results.append(ResponseMessage(role="assistant", content=final_message))
+
+            return results
             
         except Exception as e:
             logger.error(f"Error generating response: {e}")
