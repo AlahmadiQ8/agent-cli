@@ -1,10 +1,8 @@
 import argparse
 import sys
 
-from agents.azure_ai_agent_service_agent import AzureAIAgentServiceAgent
+from agents import AzureAIAgentServiceAgent, MockChatbot
 from cli_chat_interface import CliChatInterface
-from agents.mock_chatbot import MockChatbot
-
 
 import asyncio
 
