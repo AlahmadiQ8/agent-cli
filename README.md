@@ -1,14 +1,12 @@
 # Agent CLI Chatbot 🤖
 
-An interactive command-line chatbot built with Rich and prompt_toolkit for quickly prototyping and testing AI agents.
+An interactive command-line chatbot for ai agent service (or any framework/platform).
 
 ## Features
 
 - 💬 **Interactive chat interface** with markdown support
 - 🎨 **Rich formatting** with bordered messages for clear role distinction
-- 📝 **Command history** (automatically saved to `.chat_history`)
-- 🤖 **Mock responses** with realistic delays for testing
-- 🎯 **Special commands** for enhanced functionality
+- 📝 **Command history** via agent threads (and also stores locally)
 
 ## Installation
 
@@ -26,11 +24,23 @@ uv sync
 
 ## Usage
 
-Start the chatbot:
+Start the chatbot with different agent types:
 
 ```bash
-python main.py
+# Use Azure AI Agent Service (default)
+python main.py --agent ai-agent
+
+# Use mock agent for testing
+python main.py --agent mock
+
+# Custom agent name
+python main.py --agent ai-agent --agent-name "MyCustomAgent"
 ```
+
+### Agent Types
+
+- **`ai-agent`**: Azure AI Agent Service with tool calling capabilities
+- **`mock`**: Mock agent for testing and development
 
 ### Available Commands
 
@@ -43,88 +53,51 @@ python main.py
 
 ## Example Session
 
-```
+```bash
 🤖 Agent CLI
 ┌─────────────────────────────────────────────────────────────────────────────────┐
-│                               Welcome to Agent CLI Chatbot! 🚀                 │
-│                                                                                │
-│ This is a prototype testing environment for AI agents with the following       │
-│ features:                                                                      │
-│                                                                                │
-│ • 💬 Interactive chat with markdown support                                   │
-│ • 🎨 Rich formatting with bordered messages                                   │
-│ • 📝 Command history (saved to .chat_history)                                │
-│ • 🤖 Mock responses for quick testing                                         │
+│                            Welcome to Agent CLI Chatbot! 🚀                
+│                                                                            
+│ This is a prototype testing environment for AI agents with the following   
+│ features:                                                                  
+│                                                                            
+│ • 💬 Interactive chat with markdown support                                
+│ • 🎨 Rich formatting with bordered messages                                
+│ • 📝 Command history (saved to .chat_history)                              
+│ • 🔧 Azure AI integration with tool support                                
 └─────────────────────────────────────────────────────────────────────────────────┘
 
-💬 You: Hello, can you help me with Python?
+💬 You: Can you help me create a Python file with a simple calculator?
 
-┌─ 👤 User ─────────────────────────────────────────────────────────────────────────┐
-│                                                                                  │
-│   Hello, can you help me with Python?                                           │
-│                                                                                  │
+┌─ 👤 User ────────────────────────────────────────────────────────────────────────┐
+│                                                                               
+│ Can you help me create a Python file with a simple calculator?                
+│                                                                               
 └──────────────────────────────────────────────────────────────────────────────────┘
 
-┌─ 🤖 Assistant ────────────────────────────────────────────────────────────────────┐
-│                                                                                  │
-│   That's an interesting question! Let me think about it...                      │
-│                                                                                  │
-│   Here are some key points to consider:                                         │
-│                                                                                  │
-│   1. First principle: Always start with the basics                              │
-│   2. Second principle: Build incrementally                                       │
-│   3. Third principle: Test early and often                                      │
-│                                                                                  │
-│   > "The best code is code that doesn't exist" - Unknown                       │
-│                                                                                  │
-│   Would you like me to elaborate on any of these points?                        │
-│                                                                                  │
+┌─ 🔧 Tool Call ────────────────────────────────────────────────────────────────────┐
+│                                                                              
+│ create_file                                                                  
+│ Creating calculator.py with basic arithmetic functions...                    
+│                                                                              
+└──────────────────────────────────────────────────────────────────────────────────┘
+
+┌─ 🤖 Assistant ───────────────────────────────────────────────────────────────────┐
+│                                                                                
+│ I'll create a simple calculator Python file for you!                           
+│                                                                                
+│ **calculator.py** has been created with the following features:                
+│                                                                                
+│ • ➕ Addition                                                                  
+│ • ➖ Subtraction                                                               
+│ • ✖️ Multiplication                                                            
+│ • ➗ Division (with zero-division handling)                                    
+│ • 📱 Interactive menu system                                                   
+│                                                                                
+│ The calculator includes error handling and a user-friendly interface. You can  
+│ run it with: `python calculator.py`                                            
+│                                                                                
+│ Would you like me to add any additional features like advanced operations?     
+│                                                                                
 └──────────────────────────────────────────────────────────────────────────────────┘
 ```
-
-## Features in Detail
-
-### Mock Response System
-
-The chatbot includes a sophisticated mock response system that:
-
-- Provides varied responses based on input length
-- Includes realistic typing delays (0.5-2 seconds)
-- Supports markdown formatting including:
-  - **Bold** and *italic* text
-  - Code blocks with syntax highlighting
-  - Lists and numbered lists
-  - Blockquotes
-  - Headers
-
-### Chat History
-
-- Automatically saves command history to `.chat_history` file
-- Use `history` command to view recent conversations
-- Navigate through previous inputs using arrow keys
-
-### Visual Design
-
-- **User messages**: Blue bordered panels with 👤 icon
-- **Assistant messages**: Green bordered panels with 🤖 icon
-- **System messages**: Cyan bordered panels
-- **Typing indicator**: Shows "Thinking..." while generating responses
-
-## Development
-
-This CLI is designed for rapid prototyping of AI agents. To customize:
-
-1. **Modify responses**: Edit the `MockChatbot` class in `main.py`
-2. **Add new commands**: Extend the `handle_command` method
-3. **Change styling**: Modify the `display_message` method
-4. **Add new features**: Extend the `ChatInterface` class
-
-## Dependencies
-
-- `rich`: For beautiful terminal formatting
-- `prompt_toolkit`: For interactive prompts and history
-- `click`: For command-line interface (optional)
-
-## License
-
-This project is open source and available under the MIT License.
