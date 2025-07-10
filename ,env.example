@@ -1,0 +1,7 @@
+AZURE_EXISTING_AIPROJECT_ENDPOINT=
+
+# code will lookup either AZURE_AI_AGENT_ID or AZURE_AI_AGENT_NAME to obtain or create an agent if doesn't exist
+AZURE_AI_AGENT_ID=
+AZURE_AI_AGENT_NAME=my_cool_agent
+
+AZURE_AI_AGENT_DEPLOYMENT_NAME=gpt-4.1-mini
