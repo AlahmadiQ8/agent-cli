@@ -29,11 +29,12 @@ def main():
         else:
             agent = MockChatbot(name=args.agent_name or "MockBot")
         
-        chat_interface = CliChatInterface(agent=agent)
-        await chat_interface.initialize_agent()
-        
-        # Run the async chat interface
-        return await chat_interface.run()
+        # Use async context manager for proper resource cleanup
+        async with agent:
+            chat_interface = CliChatInterface(agent=agent)
+            
+            # Run the async chat interface
+            return await chat_interface.run()
     
     # Run everything async
     try:

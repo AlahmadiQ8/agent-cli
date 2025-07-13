@@ -129,3 +129,8 @@ What aspect would you like to explore further?"""
             "initialized": True,
             "conversation_length": await self.get_conversation_length(),
         }
+    
+    async def close(self) -> None:
+        """Close mock agent resources (no-op for mock)"""
+        # Mock agent doesn't have external resources to close
+        pass

@@ -82,3 +82,17 @@ class BaseAgent(ABC):
     async def get_status(self) -> Dict[str, Any]:
         """Get current agent status and metadata"""
         pass
+
+    @abstractmethod
+    async def close(self) -> None:
+        """Close agent resources and cleanup"""
+        pass
+
+    async def __aenter__(self):
+        """Async context manager entry"""
+        await self.initialize()
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Async context manager exit"""
+        await self.close()

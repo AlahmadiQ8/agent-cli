@@ -16,10 +16,6 @@ class CliChatInterface:
         self.console = Console()
         self.agent = agent or MockChatbot()
 
-    async def initialize_agent(self):
-        if not (await self.agent.initialize()):
-            raise RuntimeError(f"Failed to initialize agent: {self.agent.name}")
-
     def display_message(self, role: str, message: str, agent_name: Optional[str] = None, tool_name: Optional[str] = None):
         """Display a message with role-specific styling"""
         if role == "user":

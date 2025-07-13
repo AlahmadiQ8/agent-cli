@@ -112,9 +112,9 @@ class AzureAIAgentServiceAgent(BaseAgent):
     async def _initialize_azure_resources(self) -> None:
         """Initialize Azure AI client and agent"""
         # Initialize credentials and client
-        credentials = DefaultAzureCredential(exclude_shared_token_cache_credential=True)
+        self.credentials = DefaultAzureCredential(exclude_shared_token_cache_credential=True)
         self.ai_client = AIProjectClient(
-            credential=credentials, 
+            credential=self.credentials, 
             endpoint=self.config.project_endpoint
         )
         
@@ -263,3 +263,18 @@ class AzureAIAgentServiceAgent(BaseAgent):
             # Reset local state even if Azure cleanup fails
             self.storage.delete("thread_id")
             self.thread = None
+
+    async def close(self) -> None:
+        """Close Azure AI client and clean up resources"""
+        try:
+            if self.ai_client:
+                await self.ai_client.close()
+                await self.credentials.close()
+                logger.info("Azure AI client closed")
+                self.ai_client = None
+            
+            # Reset state
+            self._initialized = False
+            
+        except Exception as e:
+            logger.error(f"Error closing Azure AI client: {e}")
