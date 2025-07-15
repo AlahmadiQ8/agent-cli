@@ -5,16 +5,16 @@ from prompt_toolkit.history import FileHistory
 from rich.console import Console
 from rich.markdown import Markdown
 from rich.panel import Panel
+from rich.status import Status
 
 from agents.base_agent import BaseAgent
-from agents.mock_chatbot import MockChatbot
 
 class CliChatInterface:
     """Rich-based chat interface with bordered messages"""
 
-    def __init__(self, agent: Optional[BaseAgent] = None):
+    def __init__(self, agent: BaseAgent):
         self.console = Console()
-        self.agent = agent or MockChatbot()
+        self.agent = agent
 
     def display_message(self, role: str, message: str, agent_name: Optional[str] = None, tool_name: Optional[str] = None):
         """Display a message with role-specific styling"""
@@ -205,10 +205,12 @@ This is a **prototype testing environment** for AI agents with the following fea
                     self.display_message("user", user_input)
 
                     # Add user message to agent's conversation history
-                    await self.agent.add_user_message(user_input)
+                    with Status("💬 Adding message to conversation...", console=self.console, spinner="dots"):
+                        await self.agent.add_user_message(user_input)
 
-                    # Get bot response (async) - now returns a list of ResponseMessage objects
-                    response_messages = await self.agent.generate_response(user_input)
+                    # Get bot response with spinner
+                    with Status(f"🤖 {self.agent.name} is thinking...", console=self.console, spinner="dots"):
+                        response_messages = await self.agent.generate_response(user_input)
 
                     # Display and store each response message
                     for response_msg in response_messages:

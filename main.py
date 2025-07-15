@@ -3,11 +3,14 @@ import sys
 
 from agents import AzureAIAgentServiceAgent, MockChatbot
 from cli_chat_interface import CliChatInterface
+from rich.console import Console
+from rich.status import Status
 
 import asyncio
 
 def main():
     """Main entry point"""
+    console = Console()
     
     async def async_main():
         parser = argparse.ArgumentParser(description="Interactive AI Agent CLI for prototyping")
@@ -17,7 +20,7 @@ def main():
         parser.add_argument("--agent-name", type=str, help="Custom agent name")
         
         args = parser.parse_args()
-        
+    
         # Create agent based on type
         if args.agent == "mock":
             agent_name = args.agent_name or "MockBot"
@@ -31,11 +34,11 @@ def main():
         
         # Use async context manager for proper resource cleanup
         async with agent:
-            chat_interface = CliChatInterface(agent=agent)
+            with Status(f"🚀 Initializing {agent.name}...", console=console, spinner="dots"):
+                chat_interface = CliChatInterface(agent=agent)
             
             # Run the async chat interface
             return await chat_interface.run()
-    
     # Run everything async
     try:
         return asyncio.run(async_main())

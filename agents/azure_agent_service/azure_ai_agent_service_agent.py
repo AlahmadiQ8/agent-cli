@@ -294,6 +294,7 @@ class AzureAIAgentServiceAgent(BaseAgent):
             # Reset thread state
             self.storage.delete("thread_id")
             self.thread = None
+            self.conversation_history.clear()
             
         except Exception as e:
             logger.error(f"Error clearing conversation history: {e}")
