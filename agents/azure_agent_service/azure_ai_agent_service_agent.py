@@ -8,7 +8,7 @@ import os
 import logging
 
 from azure.ai.projects.aio import AIProjectClient
-from azure.ai.agents.models import Agent, MessageRole
+from azure.ai.agents.models import Agent, MessageRole, ListSortOrder
 from azure.identity.aio import DefaultAzureCredential
 
 from agents.base_agent import BaseAgent, ResponseMessage
@@ -32,6 +32,8 @@ class AzureAIAgentServiceAgent(BaseAgent):
 
     def __init__(self, name: str = "AzureAIAgent"):
         super().__init__(name)
+
+        self.conversation_history: List[ResponseMessage] = []
         
         # Load and validate configuration
         self.config = AzureConfig.from_environment()
@@ -160,6 +162,7 @@ class AzureAIAgentServiceAgent(BaseAgent):
             
             await self._initialize_azure_resources()
             await self._initialize_thread()
+            self.conversation_history = await self.get_conversation_history()
             
             self._initialized = True
             logger.info(f"Azure AI Agent '{self.name}' initialized successfully")
@@ -174,9 +177,6 @@ class AzureAIAgentServiceAgent(BaseAgent):
         """Add user message to conversation"""
         if not self._initialized:
             raise RuntimeError("Agent not initialized. Call initialize() first.")
-        
-        # Add to local history
-        await super().add_user_message(content)
 
         # Ensure thread exists
         if self.thread is None:
@@ -192,6 +192,44 @@ class AzureAIAgentServiceAgent(BaseAgent):
             role=MessageRole.USER,
         )
         logger.info(f"User message sent: {message.id}")
+
+        self.conversation_history.append(
+            ResponseMessage(
+                role="user",
+                content=content,
+                agent_name=self.name
+            )
+        )
+
+    async def get_conversation_history(self, limit = -1) -> List[ResponseMessage]:
+        """Get conversation history as list of dictionaries"""
+        if not self.ai_client or not self.thread or not self.message_processor:
+            raise RuntimeError("Required components not available")
+        
+        result: List[ResponseMessage] = []
+        async for run in self.ai_client.agents.runs.list(
+            thread_id=self.thread.id,
+            order= ListSortOrder.ASCENDING
+        ):  
+            if run.status == "failed":
+                error_msg = f"Azure AI run failed: {getattr(run, 'last_error', 'Unknown error')}"
+                result.append(ResponseMessage(role="assistant", content=f"I encountered an error: {error_msg}"))
+            
+            stepMessages = await self.message_processor.process_run_steps(self.thread.id, run.id)
+            result = result + stepMessages
+        
+        self.conversation_history = result
+        if limit > 0:
+            result = result[-limit:]
+        return result
+
+    async def get_recent_messages(self, count: int = 10) -> List[ResponseMessage]:
+        """Get the most recent messages from conversation history"""
+        return self.conversation_history[-count:] if count > 0 else self.conversation_history
+    
+    async def get_conversation_length(self) -> int:
+        """Get the number of messages in conversation history"""
+        return len(self.conversation_history)
 
     async def generate_response(self, user_input: str) -> List[ResponseMessage]:
         """Generate response using Azure AI agent"""
@@ -223,6 +261,8 @@ class AzureAIAgentServiceAgent(BaseAgent):
                 fallback = "I wasn't able to generate a response. Please try rephrasing your question."
                 return [ResponseMessage(role="assistant", content=fallback)]
             
+            # Update conversation history
+            self.conversation_history.extend(results)
             return results
             
         except Exception as e:
@@ -246,9 +286,6 @@ class AzureAIAgentServiceAgent(BaseAgent):
     async def clear_conversation_history(self) -> None:
         """Clear conversation history and reset thread"""
         try:
-            # Clear local history
-            await super().clear_conversation_history()
-            
             # Delete Azure thread
             if self.thread and self.ai_client:
                 await self.ai_client.agents.threads.delete(self.thread.id)

@@ -121,9 +121,9 @@ This is a **prototype testing environment** for AI agents with the following fea
             return
 
         history_text = f"## Chat History ({len(conversation_history)} messages)\n\n"
-        for i, message_dict in enumerate(conversation_history[-5:], 1):  # Show last 5
-            role = message_dict["role"]
-            content = message_dict["content"]
+        for i, message in enumerate(conversation_history[-5:], 1):  # Show last 5
+            role = message.role
+            content = message.content
             preview = content[:100] + "..." if len(content) > 100 else content
             history_text += f"{i}. **{role.title()}**: {preview}\n"
 
@@ -187,12 +187,12 @@ This is a **prototype testing environment** for AI agents with the following fea
 
                     # Redisplay recent chat history
                     recent_messages = await self.agent.get_recent_messages(6)  # Show last 6 messages
-                    for message_dict in recent_messages:
+                    for message in recent_messages:
                         self.display_message(
-                            message_dict["role"], 
-                            message_dict["content"],
-                            message_dict.get("agent_name"),
-                            message_dict.get("tool_name")
+                            message.role, 
+                            message.content,
+                            message.agent_name,
+                            message.tool_name
                         )
 
                     # Handle special commands
@@ -219,16 +219,6 @@ This is a **prototype testing environment** for AI agents with the following fea
                             response_msg.agent_name,
                             response_msg.tool_name
                         )
-                        
-                        # Add to conversation history
-                        if response_msg.role == "tool_call":
-                            await self.agent.add_tool_call_message(
-                                response_msg.content,
-                                response_msg.agent_name or "Unknown",
-                                response_msg.tool_name or "Unknown"
-                            )
-                        else:  # assistant message
-                            await self.agent.add_assistant_message(response_msg.content)
 
                 except KeyboardInterrupt:
                     self.console.print("\n👋 Goodbye! Thanks for testing the Agent CLI!", style="bold cyan")

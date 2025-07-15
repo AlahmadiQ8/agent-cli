@@ -10,6 +10,7 @@ class MockChatbot(BaseAgent):
 
     def __init__(self, name: str = "MockBot"):
         super().__init__(name)
+        self.conversation_history: List[ResponseMessage] = []
         self.responses = [
             "That's an interesting question! Let me think about it...",
             "I understand what you're asking. Here's my take on it:",
@@ -81,6 +82,32 @@ The key is to find the right balance for your specific use case.""",
 What aspect would you like to explore further?"""
         ]
 
+    async def add_message(self, role: str, content: str, agent_name: Optional[str] = None, tool_name: Optional[str] = None) -> None:
+        """Add a message to the conversation history"""
+        message = ResponseMessage(role=role, content=content, agent_name=agent_name, tool_name=tool_name)
+        self.conversation_history.append(message)
+
+    async def add_user_message(self, content: str) -> None:
+        """Add a user message to the conversation history"""
+        await self.add_message("user", content)
+
+    async def get_conversation_history(self) -> List[ResponseMessage]:
+        """Get conversation history as list of dictionaries"""
+        return self.conversation_history
+
+    async def get_recent_messages(self, count: int = 10) -> List[ResponseMessage]:
+        """Get the most recent messages from conversation history"""
+        recent = self.conversation_history[-count:] if count > 0 else self.conversation_history
+        return recent
+
+    async def clear_conversation_history(self) -> None:
+        """Clear all conversation history"""
+        self.conversation_history.clear()
+
+    async def get_conversation_length(self) -> int:
+        """Get the number of messages in conversation history"""
+        return len(self.conversation_history)
+
     async def generate_response(self, user_input: str) -> List[ResponseMessage]:
         """Generate a mock response with simulated thinking time"""
         await asyncio.sleep(random.uniform(0.1, 0.3))  # Simulate processing time (faster for testing)
@@ -115,6 +142,8 @@ What aspect would you like to explore further?"""
             content=response_content
         ))
         
+        self.conversation_history.extend(messages)
+
         return messages
     
     async def initialize(self) -> bool:
